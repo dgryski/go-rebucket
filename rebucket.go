@@ -60,13 +60,27 @@ type pair struct {
 	i, j int
 }
 
-func clusterDistance(errs []*errors.Error, c1, c2 Cluster, c, o float64) float64 {
+type distanceCache map[pair]float64
+
+func (dcache distanceCache) distance(p pair, e1, e2 *errors.Error, c, o float64) float64 {
+	var d float64
+	var ok bool
+	if d, ok = dcache[p]; !ok {
+		d = distance(e1, e2, c, o)
+		dcache[p] = d
+	}
+
+	return d
+}
+
+func clusterDistance(errs []*errors.Error, c1, c2 Cluster, c, o float64, dCache distanceCache) float64 {
 
 	maxd := math.Inf(-1)
 
 	for _, i := range c1.Idx {
 		for _, j := range c2.Idx {
-			d := distance(errs[i], errs[j], c, o)
+			p := pair{i, j}
+			d := dCache.distance(p, errs[i], errs[j], c, o)
 			if d > maxd {
 				maxd = d
 			}
@@ -89,9 +103,10 @@ func ClusterErrors(errs []*errors.Error, dthresh, c, o float64) []Cluster {
 
 	minD := math.Inf(1)
 
-	// TODO(dgryski): Need a better algorithm for this.  Until we get that,
-	// we still need to at least cache pairwise error distances and cluster
-	// distances, neither of which I'm doing  yet.
+	// TODO(dgryski): Need a better algorithm for this.
+	// Until we get that, cache cluster distances
+
+	dCache := make(distanceCache)
 
 	var done bool
 	for !done {
@@ -100,7 +115,7 @@ func ClusterErrors(errs []*errors.Error, dthresh, c, o float64) []Cluster {
 		// find the closest two clusters, within the distance threshold
 		for i := 0; i < len(clusters); i++ {
 			for j := i + 1; j < len(clusters); j++ {
-				d := clusterDistance(errs, clusters[i], clusters[j], c, o)
+				d := clusterDistance(errs, clusters[i], clusters[j], c, o, dCache)
 				if d < dthresh && d < minD {
 					minD = d
 					tomerge = pair{i, j}
