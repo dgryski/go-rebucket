@@ -112,6 +112,7 @@ func ClusterErrors(errs []*errors.Error, dthresh, c, o float64) []Cluster {
 	for !done {
 		var tomerge pair
 		done = true
+		minD = math.Inf(1)
 		// find the closest two clusters, within the distance threshold
 		for i := 0; i < len(clusters); i++ {
 			for j := i + 1; j < len(clusters); j++ {
